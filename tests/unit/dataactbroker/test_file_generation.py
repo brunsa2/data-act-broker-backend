@@ -6,7 +6,7 @@ from dataactcore.interfaces.interfaceHolder import InterfaceHolder
 from dataactcore.scripts.setupAllDB import setupAllDB
 from dataactbroker.handlers.fileHandler import FileHandler
 
-def test_start_generation_job(database):
+def st_start_generation_job(database):
     print("start generation test called")
     interfaces = InterfaceHolder()
     print("DB name is {}".format(BaseInterface.dbName))
@@ -60,3 +60,44 @@ class MockRequest:
     def __init__(self):
         self.headers = {"Content-Type": "application/x-www-form-urlencoded"}
         self.form = {"start": "10/1/2016", "end": "12/31/2016"}
+
+
+from unittest.mock import Mock
+
+from dataactbroker.handlers import fileHandler
+from dataactcore.interfaces.interfaceHolder import InterfaceHolder
+from dataactcore.models import lookups
+from dataactcore.models.jobModels import FileType, JobStatus, JobType
+from tests.unit.dataactcore.factories.job import JobFactory
+
+
+def test_start_generation_job_d2(database, monkeypatch, job_constants):
+    sess = database.session
+    job = JobFactory(
+        job_status=sess.query(JobStatus).filter_by(name='waiting').one(),
+        job_type=sess.query(JobType).filter_by(name='file_upload').one(),
+        file_type=sess.query(FileType).filter_by(name='award').one(),
+    )
+    sess.add(job.submission)    # @todo: why is this needed?
+    sess.add(job)
+    sess.commit()
+
+    # @todo: Is there a library that'd do this for us?
+    request = Mock(
+        headers={'Content-Type': 'application/x-www-form-urlencoded'},
+        form={'start': '2010-01-01', 'end': '2010-02-01'}
+    )
+    handler = fileHandler.FileHandler(request, InterfaceHolder(),
+                                      isLocal=True)
+    handler.debug_file_name = 'my-file-name'    # @todo why isn't this set?
+    monkeypatch.setattr(fileHandler, 'LoginSession',
+                        Mock(getName=Mock(return_value=123)))
+    handler.addJobInfoForDFile = Mock()
+    result = handler.startGenerationJob(job.submission.submission_id, 'D2')
+
+    sess.refresh(job)
+    assert job.job_status_id == lookups.JOB_STATUS_DICT['running']
+
+    assert result == handler.addJobInfoForDFile.return_value
+    # Can verify args here
+    # call_args = handler.addJobInfoForDFile.call_args[0]

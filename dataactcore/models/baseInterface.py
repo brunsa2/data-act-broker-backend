@@ -20,7 +20,7 @@ class _DB(namedtuple('_DB', ['engine', 'connection', 'Session', 'session'])):
         self.session.close()
         self.Session.remove()
         self.connection.close()
-        self.engine.dispose()
+        #self.engine.dispose()
 
 
 class GlobalDB:
