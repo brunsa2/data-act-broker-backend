@@ -1,4 +1,6 @@
+import logging
 import traceback
+
 from sqlalchemy import func, or_
 from sqlalchemy.orm import joinedload
 
@@ -223,7 +225,8 @@ class JobTrackerInterface(BaseInterface):
                 # mark job as ready
                 self.markJobStatus(depJobId, 'ready')
                 # add to the job queue
-                CloudLogger.log("Sending job {} to the job manager".format(str(depJobId)))
+                logging.getLogger('deprecated.info').info(
+                    'Sending job %s to job manager', depJobId)
                 enqueue.delay(depJobId)
 
     def runChecks(self,jobId):
