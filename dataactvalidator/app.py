@@ -1,6 +1,9 @@
 import sys
 import traceback
-from flask import Flask, request
+
+from flask import Flask, request, jsonify
+
+from dataactvalidator import exceptions
 from dataactcore.interfaces.db import GlobalDB
 from dataactcore.utils.jsonResponse import JsonResponse
 from dataactcore.utils.statusCode import StatusCode
@@ -31,6 +34,14 @@ def createApp():
         def before_request():
             GlobalDB.db()
 
+        @app.errorhandler(exceptions.ValidationError)
+        def handle_validation_error(error):
+            response_dict = error.to_dict()
+            if app.debug:
+                response_dict.update(error.get_trace())
+            response = jsonify(response_dict)
+            return response
+
         @app.route("/", methods=["GET"])
         def testApp():
             """Confirm server running."""
@@ -43,11 +54,8 @@ def createApp():
             try:
                 validationManager = ValidationManager(local, error_report_path)
                 return validationManager.validateJob(request,interfaces)
-            except Exception as e:
-                # Something went wrong getting the flask request
-                open("errorLog","a").write(str(e) + "\n")
-                exc = ResponseException(str(e),StatusCode.INTERNAL_ERROR,type(e))
-                return JsonResponse.error(exc,exc.status)
+            except:
+                raise exceptions.ValidationError('validation error')
             finally:
                 interfaces.close()
 

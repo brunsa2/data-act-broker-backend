@@ -531,8 +531,15 @@ class ValidationManager:
         self.filename = None
         job_id = None
         jobTracker = None
+        sess = GlobalDB.db().session
+
+        # test some alternate exception handling
+        # what happens if we let SqlAlchemy raise
+        # an error directly when a job isn't found?
+        sess.query(Job).filter(Job.job_id == job_id).one()
 
         try:
+
             jobTracker = interfaces.jobDb
             requestDict = RequestDictionary(request)
             if requestDict.exists("job_id"):
@@ -549,6 +556,7 @@ class ValidationManager:
             jobType = interfaces.jobDb.checkJobType(job_id)
 
         except ResponseException as e:
+            print('checking for ResponseException in validateJob')
             CloudLogger.logError(str(e), e, traceback.extract_tb(sys.exc_info()[2]))
             if e.errorType == None:
                 # Error occurred while trying to get and check job ID
@@ -558,7 +566,7 @@ class ValidationManager:
         except Exception as e:
             exc = ResponseException(str(e), StatusCode.INTERNAL_ERROR,type(e))
             CloudLogger.logError(str(e), e, traceback.extract_tb(sys.exc_info()[2]))
-            self.markJob(job_id, jobTracker, "failed", self.filename, ValidationError.unknownError)
+            #self.markJob(job_id, jobTracker, "failed", self.filename, ValidationError.unknownError)
             return JsonResponse.error(exc, exc.status)
 
         try:
